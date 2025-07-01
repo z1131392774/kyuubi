@@ -2,8 +2,9 @@
 
 ## 概述
 
-本报告分析了 `725e20cdd30add023f68a14cc1146d6e7d74a2a6.patch` 补丁在当前 Kyuubi 代码库中的可行性。该补丁旨在将 SQL
-会话元数据保存到 MetadataManager 中，实现会话信息的持久化存储。
+本报告旨在分析 `725e20cdd30add023f68a14cc1146d6e7d74a2a6.patch` 补丁在当前 Kyuubi
+代码库中的可行性，并提供一份详尽的技术评估和实施蓝图，**而非直接修改项目代码**。该补丁的核心目标是将 SQL
+会话元数据保存到 `MetadataManager` 中，以实现会话信息的持久化存储。
 
 ## 补丁功能分析
 
@@ -214,6 +215,32 @@ import org.apache.kyuubi.server.metadata.api.Metadata
 | `MetadataManager.scala`      | 156+       | 新增方法   | 中     |
 | `KyuubiSessionManager.scala` | 262+       | 新增方法   | 中     |
 | `KyuubiSessionImpl.scala`    | 105+, 225+ | 生命周期集成 | 高     |
+
+### 代码现状分析
+
+为了更准确地评估补丁的兼容性，我们对涉及的核心文件进行了分析，现状如下：
+
+-   **`MetadataManager.scala`**:
+    当前实现高度专注于批处理（`Batch`）元数据的管理，提供了如 `getBatch`、`getBatches`、`pickBatchForSubmitting`
+    等方法。它缺少为交互式会话（`Session`）设计的通用查询接口，例如按状态查询会话列表。
+
+-   **`KyuubiSessionManager.scala`**:
+    作为会话生命周期的核心管理器，它包含了 `metadataManager` 的实例（当REST服务启用时）。虽然已存在 `insertMetadata` 和
+    `updateMetadata` 方法，但它们主要在批处理场景下被调用。该类缺少从元数据存储中提取通用会话信息的主动查询方法。
+
+-   **`KyuubiSessionImpl.scala`**:
+    这是交互式会話的具体实现。其 `open()` 和 `close()`
+    方法是集成元数据持久化逻辑的理想切入点，但当前版本未包含任何与元数据存储交互的代码。
+
+-   **`SessionsResource.scala`**:
+    这是会话相关的 REST API 端点实现。其 `sessions()` 方法目前直接从 `sessionManager`
+    的内存中调用 `allSessions()` 来获取会话列表，这与补丁期望的从持久化存储获取数据的方式完全不同。
+
+-   **`MetadataFilter.scala`**:
+    这是一个积极的发现。该过滤器 `case class` 的定义已经包含了 `state: String`
+    字段，这意味着在实现按状态查询时，无需修改此基础数据结构，降低了实施的复杂度。
+
+此分析进一步印证了报告的核心结论：由于核心组件的功能职责和实现细节已发生显著变化，直接应用补丁是不可行的。
 
 ## 适配实施方案
 
