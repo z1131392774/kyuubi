@@ -33,6 +33,7 @@ import org.apache.kyuubi.ha.client.DiscoveryClientProvider._
 import org.apache.kyuubi.ha.client.ServiceNodeInfo
 import org.apache.kyuubi.operation.{Operation, OperationHandle}
 import org.apache.kyuubi.operation.log.OperationLog
+import org.apache.kyuubi.server.metadata.api.Metadata
 import org.apache.kyuubi.service.authentication.InternalSecurityAccessor
 import org.apache.kyuubi.session.SessionType.SessionType
 import org.apache.kyuubi.shaded.hive.service.rpc.thrift._
@@ -114,6 +115,12 @@ class KyuubiSessionImpl(
     traceMetricsOnOpen()
 
     checkSessionAccessPathURIs()
+
+    /**
+     * TODO:
+     * val newMetadata = Metadata()
+     * sessionManager.insertMetadata(newMetadata)
+     */
 
     // we should call super.open before running launch engine operation
     super.open()

@@ -109,8 +109,7 @@ sequenceDiagram
 2. **统一状态模型 (Unified State Model)**
     * **原则**: SQL 会话应拥有独立的、清晰的生命周期状态模型，以便于统一监控和管理。
     * **实施**: 我们将为 SQL 会话引入一个全新的 `SessionState` 枚举，而不是复用 `OperationState`
-      。这将确保领域模型的清晰性和未来的可扩展性。关于 `SessionState`
-      的详细设计，包括其状态定义、转换规则和实现规划，请参阅 [02_Session_Lifecycle_Integration.md](./02_Session_Lifecycle_Integration.md)。
+      。这将确保领域模型的清晰性和未来的可扩展性。
 
 3. **区分数据模型 (Differentiated Data Model)**
     * **原则**: 保持元数据模型的精确性，避免数据污染。
@@ -324,17 +323,6 @@ def getBatches(filter: MetadataFilter, from: Int, size: Int): Seq[Metadata] = {
 
 为了精确管理 SQL 会话的生命周期，并与现有的批处理会话（Batch Session）模型对齐，我们引入一个全新的、独立的 `SessionState` 枚举。
 
-#### 1.1.1 设计决策：独立状态机 vs. 复用 `OperationState`
-
-尽管项目初期曾考虑复用 `OperationState`，但经过深入分析，我们决定创建一个独立的 `SessionState`。这主要基于以下核心设计原则：
-
-* **领域驱动设计 (Domain-Driven Design)**: `Session` 和 `Operation` 在 Kyuubi 的领域模型中扮演着不同的角色。`Session`
-  是用户交互的上下文，而 `Operation` 是在 `Session` 内部执行的具体任务。为每个核心领域对象维护独立的状态机，可以使我们的代码更清晰地反映业务现实。
-* **高内聚，低耦合 (High Cohesion, Low Coupling)**: 创建独立的 `SessionState`
-  将所有与会话生命周期相关的逻辑（状态定义、转换规则）内聚在单一模块中，避免了 `Session` 与 `Operation`
-  模块之间产生不必要的依赖，使得两者未来的演进可以互不影响。
-* **未来可扩展性 (Future-Proofing)**: `Session` 的生命周期可能会演化出 `Operation` 所不具备的特有状态（如 `IDLE`
-  ）。如果现在复用 `OperationState`，未来扩展时将增加不必要的风险和复杂性。
 
 #### 1.1.2 `SessionState` 状态定义
 
@@ -349,6 +337,8 @@ def getBatches(filter: MetadataFilter, from: Int, size: Int): Seq[Metadata] = {
 | **TIMEOUT**     | 会话因长时间处于 `IDLE` 状态或超出其总生命周期而被系统自动关闭。          |
 | **CLOSED**      | 会话被用户或客户端主动关闭。这是一个正常的终结状态。                    |
 | **ERROR**       | 会话在生命周期内的任何阶段遇到无法恢复的错误（如引擎启动失败）。这是一个异常的终结状态。  |
+
+但是,当前处于开发的初期,先只考虑ACTIVE和TERMINATED状态!之后再尝试全部生命周期.
 
 #### 1.1.3 状态转换图 (State Transition Diagram)
 
